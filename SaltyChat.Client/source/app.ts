@@ -46,6 +46,7 @@ export class SaltyVoice {
   private _webView: alt.WebView;
   private _webSocket: alt.WebSocketClient;
   private _isConnected: boolean = false;
+  private soundproofRoomIds: number[] = [];
 
   private get serverIdentifier(): string {
     return this._configuration ? this._configuration.serverIdentifier : null;
@@ -117,6 +118,10 @@ export class SaltyVoice {
     );
     alt.on(FromClient.playSound, this.onClientPlaySound.bind(this));
     alt.on(FromClient.stopSound, this.onClientStopSound.bind(this));
+    alt.on(
+      FromClient.setSoundproofRooms,
+      this.onClientSetSoundproofRooms.bind(this)
+    );
 
     // Anims & timer
     alt.setInterval(this.onTick.bind(this), 250);
@@ -643,6 +648,8 @@ export class SaltyVoice {
     let playerStates = [];
 
     let localRoomId = native.getRoomKeyFromEntity(alt.Player.local.scriptID);
+    const isLocalPlayerInSoundproofRoom =
+      this.soundproofRoomIds.indexOf(localRoomId) > -1;
     let localScriptId = alt.Player.local.scriptID;
 
     this.VoiceClients.forEach((voiceClient) => {
@@ -671,14 +678,25 @@ export class SaltyVoice {
         let muffleIntensity = null;
         if (Config.enableMuffling) {
           let npRoomId = native.getRoomKeyFromEntity(nextPlayer.scriptID);
+          const isNpInSoundproofRoom =
+            this.soundproofRoomIds.indexOf(npRoomId) > -1;
+          
+          const havePlayersClearLosToEachOther = native.hasEntityClearLosToEntity(
+            localScriptId,
+            nextPlayer.scriptID,
+            17
+          )
 
+          // set big distance in soundproof rooms
           if (
             localRoomId != npRoomId &&
-            !native.hasEntityClearLosToEntity(
-              localScriptId,
-              nextPlayer.scriptID,
-              17
-            )
+            !havePlayersClearLosToEachOther &&
+            (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom)) {
+            // set position to something totally offside of everything
+            voiceClient.lastPosition = new alt.Vector3(-20000, -20000, 0);
+          } else if (
+            localRoomId != npRoomId &&
+            !havePlayersClearLosToEachOther
           ) {
             muffleIntensity = 10;
           } else {
@@ -869,6 +887,10 @@ export class SaltyVoice {
 
   private onClientStopSound(handle: string): void {
     this.stopSound(handle);
+  }
+
+  private onClientSetSoundproofRooms(roomIds: number[]) {
+    this.soundproofRoomIds = roomIds;
   }
 }
 

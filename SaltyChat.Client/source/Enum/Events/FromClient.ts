@@ -5,5 +5,6 @@
     setRadioVolume = "SaltyChat:SetRadioVolume",
     toggleRadioSpeaker = "SaltyChat:ToggleRadioSpeaker",
     playSound = "SaltyChat:PlaySound",
-    stopSound = "SaltyChat:StopSound"
+    stopSound = "SaltyChat:StopSound",
+    setSoundproofRooms = "SaltyChat:SetSoundproofRooms"
 }
