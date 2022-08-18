@@ -685,13 +685,20 @@ export class SaltyVoice {
             localScriptId,
             nextPlayer.scriptID,
             17
-          )
+          );
+
+          const zDist = Math.abs(alt.Player.local.pos.z - nextPlayer.pos.z)
+
+          const noSoundDueToSoundproofRooms = localRoomId != npRoomId &&
+          !havePlayersClearLosToEachOther &&
+          (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom);
+
+          const noSoundDueToDifferentFloors = localRoomId !== 0 && npRoomId !== 0 && !havePlayersClearLosToEachOther && zDist > 3
 
           // set big distance in soundproof rooms
           if (
-            localRoomId != npRoomId &&
-            !havePlayersClearLosToEachOther &&
-            (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom)) {
+            noSoundDueToSoundproofRooms || noSoundDueToDifferentFloors
+            ) {
             // set position to something totally offside of everything
             voiceClient.lastPosition = new alt.Vector3(-20000, -20000, 0);
           } else if (
