@@ -680,27 +680,30 @@ export class SaltyVoice {
           let npRoomId = native.getRoomKeyFromEntity(nextPlayer.scriptID);
           const isNpInSoundproofRoom =
             this.soundproofRoomIds.indexOf(npRoomId) > -1;
-          
-          const havePlayersClearLosToEachOther = native.hasEntityClearLosToEntity(
-            localScriptId,
-            nextPlayer.scriptID,
-            17
-          );
 
-          const zDist = Math.abs(alt.Player.local.pos.z - nextPlayer.pos.z)
+          const havePlayersClearLosToEachOther =
+            native.hasEntityClearLosToEntity(
+              localScriptId,
+              nextPlayer.scriptID,
+              17
+            );
 
-          const noSoundDueToSoundproofRooms = localRoomId != npRoomId &&
-          !havePlayersClearLosToEachOther &&
-          (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom);
+          const zDist = Math.abs(alt.Player.local.pos.z - nextPlayer.pos.z);
 
-          const noSoundDueToDifferentFloors = localRoomId !== 0 && npRoomId !== 0 && !havePlayersClearLosToEachOther && zDist > 3
+          const noSoundDueToSoundproofRooms =
+            localRoomId != npRoomId &&
+            !havePlayersClearLosToEachOther &&
+            (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom);
+
+          const noSoundDueToDifferentFloors =
+            localRoomId !== 0 &&
+            npRoomId !== 0 &&
+            !havePlayersClearLosToEachOther &&
+            zDist > 3;
 
           // set big distance in soundproof rooms
-          if (
-            noSoundDueToSoundproofRooms || noSoundDueToDifferentFloors
-            ) {
-            // set position to something totally offside of everything
-            voiceClient.lastPosition = new alt.Vector3(-20000, -20000, 0);
+          if (noSoundDueToSoundproofRooms || noSoundDueToDifferentFloors) {
+            voiceClient.distanceCulled = true;
           } else if (
             localRoomId != npRoomId &&
             !havePlayersClearLosToEachOther
