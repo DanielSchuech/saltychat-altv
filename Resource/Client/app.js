@@ -36,6 +36,7 @@ export class SaltyVoice {
     _webView;
     _webSocket;
     _isConnected = false;
+    soundproofRoomIds = [];
     get serverIdentifier() {
         return this._configuration ? this._configuration.serverIdentifier : null;
     }
@@ -67,6 +68,7 @@ export class SaltyVoice {
         alt.on(FromClient.toggleRadioSpeaker, this.onClientToggleRadioSpeaker.bind(this));
         alt.on(FromClient.playSound, this.onClientPlaySound.bind(this));
         alt.on(FromClient.stopSound, this.onClientStopSound.bind(this));
+        alt.on(FromClient.setSoundproofRooms, this.onClientSetSoundproofRooms.bind(this));
         alt.setInterval(this.onTick.bind(this), 250);
         loadAnimDict('random@arrests').catch((rej) => alt.logError(rej));
         loadAnimDict('mp_facial').catch((rej) => alt.logError(rej));
@@ -108,7 +110,7 @@ export class SaltyVoice {
         if (this._gameInstanceState == GameInstanceState.connected)
             this.initializePlugin();
         else {
-            let interval = alt.setInterval(() => {
+            const interval = alt.setInterval(() => {
                 if (this._gameInstanceState != GameInstanceState.connected)
                     return;
                 alt.clearInterval(interval);
@@ -120,41 +122,41 @@ export class SaltyVoice {
         this.VoiceClients.clear();
         this._clientIdMap.clear();
         voiceClients.forEach((client) => {
-            let player = alt.Player.getByID(client.id);
+            const player = alt.Player.getByRemoteID(client.id);
             this.onServerUpdateClient(player, client.teamSpeakName, client.voiceRange, client.isAlive, client.position);
         });
     }
     onServerUpdateClient(player, teamSpeakName, voiceRange, isAlive, position) {
-        let voiceClient = new VoiceClient(player, teamSpeakName, voiceRange, isAlive, position);
-        this.VoiceClients.set(player.id, voiceClient);
-        this._clientIdMap.set(teamSpeakName, player.id);
+        const voiceClient = new VoiceClient(player, teamSpeakName, voiceRange, isAlive, position);
+        this.VoiceClients.set(player.remoteId, voiceClient);
+        this._clientIdMap.set(teamSpeakName, player.remoteId);
     }
     onServerUpdateClientAlive(player, isAlive) {
-        if (!this.VoiceClients.has(player.id))
+        if (!this.VoiceClients.has(player.remoteId))
             return;
         if (Config.automaticPlayerHealth)
             Config.automaticPlayerHealth = false;
-        let voiceClient = this.VoiceClients.get(player.id);
+        const voiceClient = this.VoiceClients.get(player.remoteId);
         voiceClient.isAlive = isAlive;
     }
     onServerUpdateClientRange(player, voiceRange) {
-        if (!this.VoiceClients.has(player.id))
+        if (!this.VoiceClients.has(player.remoteId))
             return;
-        let voiceClient = this.VoiceClients.get(player.id);
+        const voiceClient = this.VoiceClients.get(player.remoteId);
         voiceClient.voiceRange = voiceRange;
     }
     onServerRemoveClient(playerId) {
         if (!this.VoiceClients.has(playerId))
             return;
-        let voiceClient = this.VoiceClients.get(playerId);
+        const voiceClient = this.VoiceClients.get(playerId);
         this.executeCommand(new PluginCommand(Command.removePlayer, new PlayerState(voiceClient.teamSpeakName)));
         this.VoiceClients.delete(playerId);
         this._clientIdMap.delete(voiceClient.teamSpeakName);
     }
     onServerPhoneEstablish(player, position) {
-        if (!this.VoiceClients.has(player.id))
+        if (!this.VoiceClients.has(player.remoteId))
             return;
-        let voiceClient = this.VoiceClients.get(player.id);
+        const voiceClient = this.VoiceClients.get(player.remoteId);
         if (voiceClient.distanceCulled) {
             voiceClient.lastPosition = position;
             voiceClient.SendPlayerStateUpdate();
@@ -170,7 +172,7 @@ export class SaltyVoice {
     onServerPhoneEnd(playerId) {
         if (!this.VoiceClients.has(playerId))
             return;
-        let voiceClient = this.VoiceClients.get(playerId);
+        const voiceClient = this.VoiceClients.get(playerId);
         this.executeCommand(new PluginCommand(Command.stopPhoneCommunication, new PhoneCommunication(voiceClient.teamSpeakName, true)));
     }
     onServerRadioSetChannel(radioChannel, isPrimary) {
@@ -205,13 +207,13 @@ export class SaltyVoice {
             this.playSound('leaveRadioChannel', false, 'radio');
     }
     onServerRadioChannelMemberUpdated(channelName, channelMembers) {
-        let memberArray = channelMembers.map((m) => {
+        const memberArray = channelMembers.map((m) => {
             return m;
         });
         if (this._radioConfiguration.primaryChannel === channelName) {
             this.executeCommand(new PluginCommand(Command.updateRadioChannelmembers, new RadioChannelMemberUpdate(memberArray, true), this._configuration.serverIdentifier));
         }
-        else if (this._radioConfiguration.primaryChannel === channelName) {
+        else if (this._radioConfiguration.secondaryChannel === channelName) {
             this.executeCommand(new PluginCommand(Command.updateRadioChannelmembers, new RadioChannelMemberUpdate(memberArray, false), this._configuration.serverIdentifier));
         }
     }
@@ -222,8 +224,8 @@ export class SaltyVoice {
         let teamspeakName;
         if (player == alt.Player.local)
             teamspeakName = this._configuration.teamSpeakName;
-        else if (this.VoiceClients.has(player.id)) {
-            let voiceClient = this.VoiceClients.get(player.id);
+        else if (this.VoiceClients.has(player.remoteId)) {
+            const voiceClient = this.VoiceClients.get(player.remoteId);
             if (voiceClient.distanceCulled) {
                 voiceClient.lastPosition = position;
                 voiceClient.SendPlayerStateUpdate();
@@ -251,12 +253,12 @@ export class SaltyVoice {
         if (this._gameInstanceState <= 0 || !this._configuration)
             return;
         let name = null;
-        if (player.id == alt.Player.local.id) {
+        if (player.remoteId == alt.Player.local.remoteId) {
             name = this._configuration.teamSpeakName;
             this._soundState.usingMegaphone = isSending;
         }
-        else if (this.VoiceClients.has(player.id)) {
-            let voiceClient = this.VoiceClients.get(player.id);
+        else if (this.VoiceClients.has(player.remoteId)) {
+            const voiceClient = this.VoiceClients.get(player.remoteId);
             if (voiceClient.distanceCulled) {
                 voiceClient.lastPosition = position;
                 voiceClient.SendPlayerStateUpdate();
@@ -282,7 +284,7 @@ export class SaltyVoice {
         alt.emit(ToClient.stateChanged, this._gameInstanceState, this._soundState.microphone, this._soundState.speaker);
     }
     onMessage(messageJson) {
-        let message = JSON.parse(messageJson);
+        const message = JSON.parse(messageJson);
         if (message.ServerUniqueIdentifier != this.serverIdentifier)
             return;
         switch (message.Command) {
@@ -365,11 +367,12 @@ export class SaltyVoice {
         }
     }
     stateUpdateTick() {
-        let playerStates = [];
-        let localRoomId = native.getRoomKeyFromEntity(alt.Player.local.scriptID);
-        let localScriptId = alt.Player.local.scriptID;
+        const playerStates = [];
+        const localRoomId = native.getRoomKeyFromEntity(alt.Player.local.scriptID);
+        const isLocalPlayerInSoundproofRoom = this.soundproofRoomIds.indexOf(localRoomId) > -1;
+        const localScriptId = alt.Player.local.scriptID;
         this.VoiceClients.forEach((voiceClient) => {
-            let nextPlayer = voiceClient.player;
+            const nextPlayer = voiceClient.player;
             if (!nextPlayer.valid)
                 return;
             if (!this._streamedClients.has(nextPlayer)) {
@@ -386,14 +389,27 @@ export class SaltyVoice {
                 voiceClient.lastPosition = nextPlayer.pos;
                 let muffleIntensity = null;
                 if (Config.enableMuffling) {
-                    let npRoomId = native.getRoomKeyFromEntity(nextPlayer.scriptID);
-                    if (localRoomId != npRoomId &&
-                        !native.hasEntityClearLosToEntity(localScriptId, nextPlayer.scriptID, 17)) {
+                    const npRoomId = native.getRoomKeyFromEntity(nextPlayer.scriptID);
+                    const isNpInSoundproofRoom = this.soundproofRoomIds.indexOf(npRoomId) > -1;
+                    const havePlayersClearLosToEachOther = native.hasEntityClearLosToEntity(localScriptId, nextPlayer.scriptID, 17);
+                    const zDist = Math.abs(alt.Player.local.pos.z - nextPlayer.pos.z);
+                    const noSoundDueToSoundproofRooms = localRoomId != npRoomId &&
+                        !havePlayersClearLosToEachOther &&
+                        (isLocalPlayerInSoundproofRoom || isNpInSoundproofRoom);
+                    const noSoundDueToDifferentFloors = localRoomId !== 0 &&
+                        npRoomId !== 0 &&
+                        !havePlayersClearLosToEachOther &&
+                        zDist > 3;
+                    if (noSoundDueToSoundproofRooms || noSoundDueToDifferentFloors) {
+                        voiceClient.distanceCulled = true;
+                    }
+                    else if (localRoomId != npRoomId &&
+                        !havePlayersClearLosToEachOther) {
                         muffleIntensity = 10;
                     }
                     else {
-                        let pVehicle = alt.Player.local.vehicle;
-                        let nVehicle = nextPlayer.vehicle;
+                        const pVehicle = alt.Player.local.vehicle;
+                        const nVehicle = nextPlayer.vehicle;
                         if (pVehicle != nVehicle) {
                             if (pVehicle && !hasOpening(pVehicle))
                                 muffleIntensity += 4;
@@ -413,7 +429,7 @@ export class SaltyVoice {
             teamSpeakName == this._configuration.teamSpeakName)
             playerId = alt.Player.local.scriptID;
         else {
-            let voiceClient = this.VoiceClients.get(this._clientIdMap.get(teamSpeakName));
+            const voiceClient = this.VoiceClients.get(this._clientIdMap.get(teamSpeakName));
             if (voiceClient != null)
                 playerId = voiceClient.player.scriptID;
         }
@@ -422,6 +438,10 @@ export class SaltyVoice {
                 native.playFacialAnim(playerId, 'mic_chatter', 'mp_facial');
             else
                 native.playFacialAnim(playerId, 'mood_normal_1', 'facials@gen_male@variations@normal');
+        }
+        if (teamSpeakName == this._configuration.teamSpeakName &&
+            Config.enableTalkingChangedEvent) {
+            alt.emit(ToClient.voiceTalkingChanged, isTalking);
         }
     }
     initializePlugin() {
@@ -455,7 +475,7 @@ export class SaltyVoice {
     }
     onClientToggleRange() {
         let newIndex;
-        let index = this._configuration.voiceRanges.indexOf(this._voiceRange);
+        const index = this._configuration.voiceRanges.indexOf(this._voiceRange);
         if (index < 0)
             newIndex = 1;
         else if (index + 1 >= this._configuration.voiceRanges.length)
@@ -483,6 +503,9 @@ export class SaltyVoice {
     }
     onClientStopSound(handle) {
         this.stopSound(handle);
+    }
+    onClientSetSoundproofRooms(roomIds) {
+        this.soundproofRoomIds = roomIds;
     }
 }
 SaltyVoice.GetInstance();

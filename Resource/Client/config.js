@@ -10,4 +10,5 @@ export class Config {
     static overlayLanguage = "en";
     static overlayAddress = "ts.yourserver.com";
     static automaticPlayerHealth = true;
+    static enableTalkingChangedEvent = false;
 }

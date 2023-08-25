@@ -7,4 +7,5 @@ export var FromClient;
     FromClient["toggleRadioSpeaker"] = "SaltyChat:ToggleRadioSpeaker";
     FromClient["playSound"] = "SaltyChat:PlaySound";
     FromClient["stopSound"] = "SaltyChat:StopSound";
+    FromClient["setSoundproofRooms"] = "SaltyChat:SetSoundproofRooms";
 })(FromClient || (FromClient = {}));
