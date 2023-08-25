@@ -195,7 +195,7 @@ export class SaltyVoice {
     this.VoiceClients.clear();
     this._clientIdMap.clear();
     voiceClients.forEach((client) => {
-      let player = alt.Player.getByID(client.id);
+      let player = alt.Player.getByRemoteID(client.id);
       this.onServerUpdateClient(
         player,
         client.teamSpeakName,
@@ -220,17 +220,17 @@ export class SaltyVoice {
       isAlive,
       position
     );
-    this.VoiceClients.set(player.id, voiceClient);
-    this._clientIdMap.set(teamSpeakName, player.id);
+    this.VoiceClients.set(player.remoteId, voiceClient);
+    this._clientIdMap.set(teamSpeakName, player.remoteId);
   }
 
   private onServerUpdateClientAlive(
     player: alt.Player,
     isAlive: boolean
   ): void {
-    if (!this.VoiceClients.has(player.id)) return;
+    if (!this.VoiceClients.has(player.remoteId)) return;
     if (Config.automaticPlayerHealth) Config.automaticPlayerHealth = false;
-    let voiceClient = this.VoiceClients.get(player.id);
+    let voiceClient = this.VoiceClients.get(player.remoteId);
     voiceClient.isAlive = isAlive;
   }
 
@@ -238,8 +238,8 @@ export class SaltyVoice {
     player: alt.Player,
     voiceRange: number
   ): void {
-    if (!this.VoiceClients.has(player.id)) return;
-    let voiceClient = this.VoiceClients.get(player.id);
+    if (!this.VoiceClients.has(player.remoteId)) return;
+    let voiceClient = this.VoiceClients.get(player.remoteId);
     voiceClient.voiceRange = voiceRange;
   }
 
@@ -261,8 +261,8 @@ export class SaltyVoice {
     player: alt.Player,
     position: alt.Vector3
   ): void {
-    if (!this.VoiceClients.has(player.id)) return;
-    let voiceClient = this.VoiceClients.get(player.id);
+    if (!this.VoiceClients.has(player.remoteId)) return;
+    let voiceClient = this.VoiceClients.get(player.remoteId);
     if (voiceClient.distanceCulled) {
       voiceClient.lastPosition = position;
       voiceClient.SendPlayerStateUpdate();
@@ -410,8 +410,8 @@ export class SaltyVoice {
     let teamspeakName;
     if (player == alt.Player.local)
       teamspeakName = this._configuration.teamSpeakName;
-    else if (this.VoiceClients.has(player.id)) {
-      let voiceClient = this.VoiceClients.get(player.id);
+    else if (this.VoiceClients.has(player.remoteId)) {
+      let voiceClient = this.VoiceClients.get(player.remoteId);
       if (voiceClient.distanceCulled) {
         voiceClient.lastPosition = position;
         voiceClient.SendPlayerStateUpdate();
@@ -470,11 +470,11 @@ export class SaltyVoice {
   ): void {
     if (this._gameInstanceState <= 0 || !this._configuration) return;
     let name: string = null;
-    if (player.id == alt.Player.local.id) {
+    if (player.remoteId == alt.Player.local.remoteId) {
       name = this._configuration.teamSpeakName;
       this._soundState.usingMegaphone = isSending;
-    } else if (this.VoiceClients.has(player.id)) {
-      let voiceClient = this.VoiceClients.get(player.id);
+    } else if (this.VoiceClients.has(player.remoteId)) {
+      let voiceClient = this.VoiceClients.get(player.remoteId);
       if (voiceClient.distanceCulled) {
         voiceClient.lastPosition = position;
         voiceClient.SendPlayerStateUpdate();
