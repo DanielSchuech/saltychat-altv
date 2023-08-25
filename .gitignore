@@ -4,3 +4,4 @@ Resource/
 SaltyChat.Client/**/*.js
 obj/
 bin/
+SaltyChat.Client/node_modules
