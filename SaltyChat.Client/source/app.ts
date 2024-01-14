@@ -196,13 +196,17 @@ export class SaltyVoice {
     this._clientIdMap.clear();
     voiceClients.forEach((client) => {
       const player = alt.Player.getByRemoteID(client.id);
-      this.onServerUpdateClient(
-        player,
-        client.teamSpeakName,
-        client.voiceRange,
-        client.isAlive,
-        client.position
-      );
+      if (player) {
+        this.onServerUpdateClient(
+          player,
+          client.teamSpeakName,
+          client.voiceRange,
+          client.isAlive,
+          client.position
+        );
+      } else {
+        console.log(`SaltyChat: Cannot initialise id ${client.id} for ${client.teamSpeakName}`);
+      }
     });
   }
 
